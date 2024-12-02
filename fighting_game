@@ -100,7 +100,7 @@ class Bot(Fighter): # Initialising the bots from the Fighter class
     def decide_move(self):
         rand_val = random.random()
         
-        cumulative_probability = 0.0
+        cumulative_probability = 0.0  # Cumulative probability is calculated so that the random value generated can be checked against it, ensuring fairness when selecting the attack typle
         for move, probability in self.genome.attack_probabilities.items():
             cumulative_probability += probability
             if rand_val < cumulative_probability:
@@ -243,8 +243,8 @@ def main(): # Main loop that runs for a number of generations defined by the use
             
             new_bots_population = evolve_bots(winners)
             
-            bot_population.clear()   
-            bot_population.extend(new_bots_population)
+            bot_population.clear()   # Clears the old population to accomodate the new, improved bots
+            bot_population.extend(new_bots_population) # Appends the newly generated bots to the solution domain
 
 if __name__ == "__main__":
     main()
