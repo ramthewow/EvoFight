@@ -1,60 +1,142 @@
+'''
+---
+ Game Rules and How to Play
+---
+
+ Objective:
+    Defeat all 5 AI-controlled bots before they deplete your HP.
+
+---
+
+ Player Information:
+    Starting HP: 500
+    Mana: Starts at 0 (Max: 50)
+    Special Attack: Requires 30 mana
+
+---
+
+ Player Moves:
+    Punch (3 types):
+        1: Front punch (40 damage)
+        2: Jab (30 damage)
+        3: Uppercut (60 damage)
+        Note: Each punch gives 10 mana.
+
+    Kick (3 types):
+        1: High kick (45 damage)
+        2: Low kick (35 damage)
+        3: Sweep (20 damage)
+        Note: Each kick gives 10 mana.
+
+    Block:
+        Prevents most bot attacks.
+        Gives 20 mana.
+
+    Special Attack:
+        Deals 100 damage.
+        Requires 30 mana.
+
+---
+
+ Bot Information:
+    Starting HP: 100 each
+    Actions:
+        Punch
+        Kick
+        Block
+    Bots use random strategies based on probabilities.
+
+---
+
+ Gameplay:
+    Choose Your Move:
+        Select from Punch, Kick, Block, or Special Attack.
+
+    Sub-Move Selection:
+        If you choose Punch or Kick, select the type (1, 2, or 3).
+
+    Bot's Turn:
+        Each surviving bot will attack or block.
+
+    Mana Gain:
+        Punch and Kick give 10 mana.
+        Blocking gives 20 mana.
+
+---
+
+ Win Condition:
+    Defeat all bots by reducing their HP to 0.
+
+---
+
+ Loss Condition:
+    Your HP reaches 0 before defeating all bots.
+
+---
+
+ Tips:
+        Use Blocks strategically to gain mana.
+        Save mana for powerful Special Attacks.
+        Balance offense and defense to survive multiple bot attacks.
+'''
+
 import random
 
-PLAYER_HP = 300
-BOT_HP = 300
+PLAYER_HP = 500
+BOT_HP = 100
 MAX_MANA = 50
-BLOCK_IGNORE_CHANCE = 0.35  
-
+BLOCK_IGNORE_CHANCE = 0.35
 bot_population = []
 
-class Fighter: # A class that represents both the player and the bots
+
+class Fighter:
     def __init__(self, hp):
         self.hp = hp
-        self.mana = 0 
-        self.special_attack_used = False  
+        self.mana = 0
+        self.special_attack_used = False
 
     def punch(self, punch_type):
-        punch_types = { # Different punch attacks and their damage values:
+        punch_types = {
             1: 40,  # Front punch
             2: 30,  # Jab
-            3: 60   # Uppercut
+            3: 60  # Uppercut
         }
-        self.gain_mana(10)  # Gain mana on punch
-        return self.apply_critical(punch_types[punch_type])
+        damage = self.apply_critical(punch_types[punch_type])
+        self.gain_mana(10)
+        return damage
 
     def kick(self, kick_type):
-        kick_types = { # Different kick attacks and their damage values:
+        kick_types = {
             1: 45,  # High kick
             2: 35,  # Low kick
-            3: 20   # Sweep
+            3: 20  # Sweep
         }
-        self.gain_mana(10)  # Gain mana on kick
-        return self.apply_critical(kick_types[kick_type])
+        damage = self.apply_critical(kick_types[kick_type])
+        self.gain_mana(10)
+        return damage
 
     def block(self):
-        self.gain_mana(20)  # Blocking gains more mana
-        return 0  # Blocking negates all damage
+        self.gain_mana(20)
+        return 0
 
     def special_attack(self):
-        if self.mana >= MAX_MANA:
-            self.mana = 0
-            return self.apply_critical(100)  # The special attack deals 100 damage
-        else:
-            print("Special attack unavailable. Mana is not full.")
-            return 0
+        if self.mana < 30:
+            return None
+        self.mana -= 30
+        return self.apply_critical(100)
 
     def gain_mana(self, amount):
         self.mana = min(self.mana + amount, MAX_MANA)
-        print(f"Mana gained! Current mana: {self.mana}/{MAX_MANA}")
+        print(f"Player gained mana! Current mana: {self.mana}/{MAX_MANA}")
 
     def apply_critical(self, base_damage):
-        if random.random() < 0.3:  # 30% chance for critical hit
+        if random.random() < 0.3:
             print("Critical hit!")
-            return int(base_damage * 1.5)  # Apply critical multiplier, i.e, 1.5 times the base damage
-        else:
-            return base_damage
+            return int(base_damage * 1.5)
+        return base_damage
 
-class BotGenome: # A class that represent the genome of each bot, i.e, the different probability values the bot contains for each kind of attack
+
+class BotGenome:
     def __init__(self):
         self.attack_probabilities = {
             'punch': random.uniform(0, 1),
@@ -63,188 +145,130 @@ class BotGenome: # A class that represent the genome of each bot, i.e, the diffe
         }
         self.normalize_probabilities()
 
-    def normalize_probabilities(self): # Normalizes the probabilities so that their sum equals 1 which ensures valid probability distributions
+    def normalize_probabilities(self):
         total = sum(self.attack_probabilities.values())
         for key in self.attack_probabilities:
             self.attack_probabilities[key] /= total
 
-class Bot(Fighter): # Initialising the bots from the Fighter class
+
+class Bot(Fighter):
     def __init__(self, hp, bot_id):
         super().__init__(hp)
-        self.genome = BotGenome() # Each bot is initialised with a genome that determines its fighting behavior
-        self.bot_id = bot_id # Each bot is also assigned a unique bot ID
-        
-        # Fitness attributes to track performance during matches
-        self.total_damage_dealt = 0  
-        self.survival_time = 0  
+        self.genome = BotGenome()
+        self.bot_id = bot_id
 
-    def fight(self, round_num, player_move, subattack_type): # The function that determines the bot's actions during a match
-        bot_move = self.decide_move() # A function that randomly selects a move based on the bot's genome(the probability values of the bot)
-        
+    def fight(self, player_move, subattack_type):
+        bot_move = self.decide_move()
         if bot_move == 'punch':
-            damage = self.punch(subattack_type) if not self.ignores_block(player_move) else 0
+            damage = self.punch(subattack_type) if subattack_type and not self.ignores_block(player_move) else 0
             print(f"Bot {self.bot_id} punches and deals {damage} damage.")
-            if damage > 0:
-                self.total_damage_dealt += damage  
             return damage
         elif bot_move == 'kick':
-            damage = self.kick(subattack_type) if not self.ignores_block(player_move) else 0
+            damage = self.kick(subattack_type) if subattack_type and not self.ignores_block(player_move) else 0
             print(f"Bot {self.bot_id} kicks and deals {damage} damage.")
-            if damage > 0:
-                self.total_damage_dealt += damage  
             return damage
-        else:  
+        else:
             print(f"Bot {self.bot_id} blocks.")
             return self.block()
 
     def decide_move(self):
         rand_val = random.random()
-        
-        cumulative_probability = 0.0  # Cumulative probability is calculated so that the random value generated can be checked against it, ensuring fairness when selecting the attack typle
+        cumulative_probability = 0.0
         for move, probability in self.genome.attack_probabilities.items():
             cumulative_probability += probability
             if rand_val < cumulative_probability:
                 return move
-    
-    def ignores_block(self, player_move): # Checks if the bot's move ignores the player's block.
+
+    def ignores_block(self, player_move):
         if player_move == 'block':
-            if random.random() < BLOCK_IGNORE_CHANCE: # The bot has a 35% chance of ignoring a player block
+            if random.random() < BLOCK_IGNORE_CHANCE:
                 print(f"Bot {self.bot_id}'s attack ignores the player's block!")
-                return False  
-            else:
-                print("Player successfully blocks!")
-                return True  
-        return False  
-
-# This is the fitness function to evaluate each bot's performance based on damage dealt and survival time
-def calculate_fitness(bot):
-    damage_dealt = bot.total_damage_dealt  
-    survival_time = bot.survival_time  
-    return damage_dealt + (survival_time * 10)  
-
-# This is the function to apply the genetic algorithm of crossover to the population of bots
-def crossover(parent1_genome, parent2_genome):
-    child_genome = BotGenome()
-    
-    for move in child_genome.attack_probabilities.keys():
-        child_genome.attack_probabilities[move] = (parent1_genome.attack_probabilities[move] + parent2_genome.attack_probabilities[move]) / 2
-    
-    return child_genome
-
-# This function applies the genetic algorithm of mutation to the genome of a bot. This prevents being stuck at a local optima
-def mutate(genome): 
-    mutation_rate = 0.1  
-    for move in genome.attack_probabilities.keys():
-        if random.random() < mutation_rate:
-            genome.attack_probabilities[move] += random.uniform(-0.05, 0.05)  
-            genome.normalize_probabilities()  
-
-def evaluate_bots(): # The solutions(bots) are ranked based on the fitness function
-    for bot in bot_population:
-        bot.fitness = calculate_fitness(bot)  
-
-def select_parents(): # The best possible solutions(bots) are picked for crossover
-    total_fitness = sum(bot.fitness for bot in bot_population)
-    
-    selection_probs = [bot.fitness / total_fitness for bot in bot_population]
-    
-    parents = random.choices(bot_population, weights=selection_probs, k=2)  
-    return parents
-
+                return False
+            print("Player successfully blocks!")
+            return True
+        return False
 
 
 def simulate_fight():
-    global bot_population   
-    
+    global bot_population
     player = Fighter(PLAYER_HP)
-    
-    bot_population.clear() 
-    bot_population.extend(Bot(BOT_HP, i + 1) for i in range(5))  
-    
-    round_num = 0  
+    bot_population.clear()
+    bot_population.extend(Bot(BOT_HP, i + 1) for i in range(5))
+    round_num = 0
 
-    while player.hp > 0 and any(bot.hp > 0 for bot in bot_population):  
+    while player.hp > 0 and any(bot.hp > 0 for bot in bot_population):
         print(f"\n--- Round {round_num + 1} ---")
-        
+
+        # Player's turn
         while True:
             try:
-                player_move = int(input("Choose your move: (1=Punch,2=Kick,3=Block,4=Special Attack): "))
+                player_move = int(input("Choose your move: (1=Punch, 2=Kick, 3=Block, 4=Special Attack): "))
                 if player_move in [1, 2, 3, 4]:
+                    if player_move == 4 and player.mana < 30:
+                        print("Not enough mana for a special attack! Choose a different move.")
+                        continue
                     break
-                else:
-                    print("Invalid choice, please select a valid option.")
+                print("Invalid choice, please select a valid option.")
             except ValueError:
                 print("Invalid input, please enter a number (1-4).")
 
         subattack_type = None
-        if player_move in [1, 2]:  
-            if player_move == 1:
-                subattack_type = int(input("Choose punch type: (1=Front punch,2=Jab,3=Uppercut): "))
-            elif player_move == 2:
-                subattack_type = int(input("Choose kick type: (1=High kick,2=Low kick,3=Sweep): "))
+        if player_move == 1:
+            subattack_type = int(input("Choose punch type: (1=Front punch, 2=Jab, 3=Uppercut): "))
+            damage = player.punch(subattack_type)
+        elif player_move == 2:
+            subattack_type = int(input("Choose kick type: (1=High kick, 2=Low kick, 3=Sweep): "))
+            damage = player.kick(subattack_type)
+        elif player_move == 3:
+            damage = player.block()
+        elif player_move == 4:
+            damage = player.special_attack()
+            if damage is None:
+                print("Not enough mana for a special attack! Choose again.")
+                continue
+            print(f"Special attack deals {damage} damage!")
 
-        damage_to_bot_total = sum(bot.fight(round_num, player_move, subattack_type) for bot in bot_population)
-
-        if damage_to_bot_total > 0:
+        # Apply player's damage to bots
+        if damage > 0:
             for bot in bot_population:
-                bot.hp -= damage_to_bot_total / len(bot_population)
-        
-            print(f"\nPlayer deals a total of {damage_to_bot_total} damage to bots.")
-        
+                if bot.hp > 0:
+                    bot.hp -= damage / sum(bot.hp > 0 for bot in bot_population)
+            print(f"Player deals {damage} total damage to bots.")
+
+        # Bot's turn
         for bot in bot_population:
             if bot.hp > 0:
-                bot_damage = bot.fight(round_num, player_move, subattack_type)
+                print(f"\n--- Bot {bot.bot_id}'s Turn ---")
+                bot_damage = bot.fight(player_move, subattack_type)
                 if bot_damage > 0:
                     player.hp -= bot_damage
-                    print(f"Bot {bot.bot_id} attacks and deals {bot_damage} damage. Player HP: {player.hp}")
-        
+                    print(f"Bot {bot.bot_id} deals {bot_damage} damage to the player.")
+
+        # Display remaining health
+        print("\nRemaining Health:")
+        print(f"Player HP: {player.hp}")
+        for bot in bot_population:
+            print(f"Bot {bot.bot_id} HP: {bot.hp}\n")
+
         round_num += 1
 
+    # Match result
     winners = [bot for bot in bot_population if bot.hp > 0]
-    
     print("\n--- Match Result ---")
     if player.hp > max(bot.hp for bot in bot_population):
         print("\nPlayer wins!")
-    
     elif winners:
         print("\nBots win!")
-    
-    # Evaluate the fitness of all bots after the match.
-    evaluate_bots()
-    
-    return winners 
+    return winners
 
-def evolve_bots(winners): # This function evolves the bot population by generating the next generation based on the winners of the current fight
-    next_generation = []
-    
-    while len(next_generation) < len(winners) * 2:  
-        parent1, parent2 = select_parents() 
-        
-        child_genome = crossover(parent1.genome, parent2.genome)
-        
-        mutate(child_genome)
-        
-        next_generation.append(Bot(BOT_HP, len(next_generation) + len(winners)))  
-    
-    return next_generation
 
-def main(): # Main loop that runs for a number of generations defined by the user
-    global bot_population   
-    
+def main():
+    global bot_population
     num_generations = int(input("Enter the number of generations to simulate: "))
-    
     for generation in range(num_generations):
         print(f"\n--- Generation {generation + 1} ---")
-        
-        winners = simulate_fight()
-        
-        if winners:
-            print(f"{len(winners)} bots survived this generation.")
-            
-            new_bots_population = evolve_bots(winners)
-            
-            bot_population.clear()   # Clears the old population to accomodate the new, improved bots
-            bot_population.extend(new_bots_population) # Appends the newly generated bots to the solution domain
+        simulate_fight()
+
 
 if __name__ == "__main__":
     main()
